@@ -449,12 +449,12 @@
   <script>
     // ===== CONFIGURATION SUPABASE =====
     // À REMPLACER avec vos vraies credentials !
-    const SUPABASE_URL = 'https://nwwuolbafiacxcqtkuri.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im53d3VvbGJhZmlhY3hjcXRrdXJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5OTk1MTgsImV4cCI6MjA4NTU3NTUxOH0.soZ5ScVxPM6katLvNEguVK-hlNnAkp3zS-WHPRM38mg';
+    const SUPABASE_URL = 'https://YOUR_PROJECT.supabase.co';
+    const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
     const TABLE_NAME = 'items';
-    
+
     // Variables globales
-    let supabase = null;
+    let supabaseClient = null;
     let isConnected = false;
 
     // Initialisation
@@ -471,7 +471,7 @@
       try {
         // Initialiser Supabase
         const { createClient } = window.supabase;
-        supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
         // Tester la connexion
         await testConnection();
@@ -489,7 +489,7 @@
 
     async function testConnection() {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
           .from(TABLE_NAME)
           .select('count', { count: 'exact', head: true });
         
@@ -508,7 +508,7 @@
         const dataList = document.getElementById('dataList');
         dataList.innerHTML = '<div class="empty-state"><div class="loading"></div></div>';
         
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
           .from(TABLE_NAME)
           .select('*')
           .order('created_at', { ascending: false })
@@ -571,7 +571,7 @@
       submitLoading.style.display = 'inline-block';
 
       try {
-        const { error } = await supabase
+        const { error } = await supabaseClient
           .from(TABLE_NAME)
           .insert([{
             title,
@@ -601,7 +601,7 @@
       }
 
       try {
-        const { error } = await supabase
+        const { error } = await supabaseClient
           .from(TABLE_NAME)
           .delete()
           .eq('id', id);
