@@ -235,6 +235,7 @@
       display: flex;
       flex-direction: column;
       gap: 12px;
+      min-height: 0; /* Important pour flexbox */
     }
 
     .message {
@@ -986,17 +987,46 @@
       // Charger les messages
       loadMessages();
 
-      // S'abonner aux nouveaux messages
-      if (messageSubscription) messageSubscription.unsubscribe();
+      // S'abonner aux nouveaux messages en temps réel
+      if (messageSubscription) {
+        await messageSubscription.unsubscribe();
+      }
+      
       messageSubscription = supabaseClient
-        .channel(`messages:${conversationId}`)
+        .channel(`messages:${conversationId}`, {
+          config: {
+            broadcast: { self: true },
+            presence: { key: currentUser.id }
+          }
+        })
         .on('postgres_changes', 
-          { event: '*', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
+          { 
+            event: 'INSERT', 
+            schema: 'public', 
+            table: 'messages', 
+            filter: `conversation_id=eq.${conversationId}` 
+          },
+          (payload) => {
+            // Actualiser les messages immédiatement
+            loadMessages();
+          }
+        )
+        .on('postgres_changes',
+          {
+            event: 'DELETE',
+            schema: 'public',
+            table: 'messages',
+            filter: `conversation_id=eq.${conversationId}`
+          },
           (payload) => {
             loadMessages();
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('✅ Abonné aux messages en temps réel');
+          }
+        });
     } catch (error) {
       console.error('Erreur sélection conversation:', error);
     }
@@ -1021,7 +1051,10 @@
         </div>
       `).join('');
 
-      container.scrollTop = container.scrollHeight;
+      // Scroll automatique vers le bas
+      setTimeout(() => {
+        container.scrollTop = container.scrollHeight;
+      }, 0);
     } catch (error) {
       console.error('Erreur chargement messages:', error);
     }
