@@ -28,7 +28,7 @@
     // ⚡ Supabase configuration - ne déclarer supabase qu'une seule fois !
     const SUPABASE_URL = "https://nwwuolbafiacxcqtkuri.supabase.co";
     const SUPABASE_KEY = "sb_publishable_XGosWkveljvqaqSYuLEuMQ_b-otnH9b";
-    const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const client = Supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     // Fonction pour afficher les items
     async function fetchItems() {
