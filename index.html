@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>GitHub Page + Supabase</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <h1>Liste des Items</h1>
+  <ul id="item-list"></ul>
+
+  <script>
+    // ⚡ Configuration Supabase
+    const SUPABASE_URL = "https://nwwuolbafiacxcqtkuri.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_XGosWkveljvqaqSYuLEuMQ_b-otnH9b";
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // Fonction pour récupérer les données
+    async function fetchItems() {
+      const { data, error } = await supabase.from('items').select('*');
+      if (error) {
+        console.error(error);
+        return;
+      }
+
+      const list = document.getElementById('item-list');
+      data.forEach(item => {
+        const li = document.createElement('li');
+        li.textContent = `${item.name} : ${item.description}`;
+        list.appendChild(li);
+      });
+    }
+
+    fetchItems();
+  </script>
+</body>
+</html>
