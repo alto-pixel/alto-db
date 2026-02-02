@@ -24,55 +24,51 @@
     <button type="submit">Ajouter</button>
   </form>
 
-  <script>
-    // ⚡ Supabase configuration - ne déclarer supabase qu'une seule fois !
-    const SUPABASE_URL = "https://nwwuolbafiacxcqtkuri.supabase.co";
-    const SUPABASE_KEY = "sb_publishable_XGosWkveljvqaqSYuLEuMQ_b-otnH9b";
-    const client = Supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+<script>
+  // Crée le client Supabase avec une variable qui ne conflict pas
+  const client = Supabase.createClient(
+    "https://nwwuolbafiacxcqtkuri.supabase.co",
+    "sb_publishable_XGosWkveljvqaqSYuLEuMQ_b-otnH9b"
+  );
 
-    // Fonction pour afficher les items
-    async function fetchItems() {
-      const { data, error } = await supabase.from('items').select('*').order('id');
-      if (error) {
-        console.error("Erreur Supabase :", error);
-        return;
-      }
-
-      const list = document.getElementById('item-list');
-      list.innerHTML = ""; // vide la liste avant de remplir
-      if (data.length === 0) {
-        list.innerHTML = "<li>Aucun item pour le moment</li>";
-        return;
-      }
-
-      data.forEach(item => {
-        const li = document.createElement('li');
-        li.textContent = `${item.name} : ${item.description}`;
-        list.appendChild(li);
-      });
+  async function fetchItems() {
+    const { data, error } = await client.from('items').select('*').order('id');
+    if (error) {
+      console.error("Erreur Supabase :", error);
+      return;
     }
 
-    // Charger la liste au démarrage
-    fetchItems();
+    const list = document.getElementById('item-list');
+    list.innerHTML = "";
+    if (data.length === 0) {
+      list.innerHTML = "<li>Aucun item pour le moment</li>";
+      return;
+    }
 
-    // Gestion du formulaire pour ajouter un item
-    const form = document.getElementById("item-form");
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-
-      const name = document.getElementById("name").value;
-      const description = document.getElementById("description").value;
-
-      const { data, error } = await supabase.from("items").insert([{ name, description }]);
-      if (error) {
-        console.error("Erreur lors de l'ajout :", error);
-      } else {
-        console.log("Item ajouté :", data);
-        fetchItems(); // recharger la liste
-      }
-
-      form.reset(); // vider le formulaire
+    data.forEach(item => {
+      const li = document.createElement('li');
+      li.textContent = `${item.name} : ${item.description}`;
+      list.appendChild(li);
     });
-  </script>
+  }
+
+  fetchItems();
+
+  // Formulaire pour ajouter un item
+  document.getElementById("item-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = document.getElementById("name").value;
+    const description = document.getElementById("description").value;
+
+    const { data, error } = await client.from("items").insert([{ name, description }]);
+    if (error) {
+      console.error("Erreur lors de l'ajout :", error);
+    } else {
+      fetchItems();
+    }
+
+    e.target.reset();
+  });
+</script>
 </body>
 </html>
