@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Messagerie Privée</title>
+  <title>Messagerie Avancée</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     * {
       margin: 0;
@@ -17,6 +18,7 @@
       --primary-dark: #1e40af;
       --success: #10b981;
       --danger: #ef4444;
+      --warning: #f59e0b;
       --bg: #0f172a;
       --bg-secondary: #1e293b;
       --bg-tertiary: #334155;
@@ -37,7 +39,7 @@
 
     .app-container {
       display: grid;
-      grid-template-columns: 300px 1fr;
+      grid-template-columns: 320px 1fr;
       height: 100vh;
       gap: 0;
     }
@@ -64,21 +66,27 @@
     }
 
     .avatar {
-      width: 40px;
-      height: 40px;
+      width: 44px;
+      height: 44px;
       border-radius: 50%;
       background: linear-gradient(135deg, #60a5fa, #3b82f6);
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: bold;
-      font-size: 0.9em;
+      font-size: 0.95em;
       color: white;
+      flex-shrink: 0;
+    }
+
+    .avatar.group {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
     }
 
     .user-details h3 {
       font-size: 0.95em;
       margin-bottom: 2px;
+      font-weight: 600;
     }
 
     .user-details small {
@@ -88,10 +96,10 @@
 
     .logout-btn {
       width: 100%;
-      padding: 8px;
+      padding: 10px;
       background: var(--danger);
       border: none;
-      border-radius: 6px;
+      border-radius: 8px;
       color: white;
       font-size: 0.85em;
       font-weight: 600;
@@ -104,6 +112,40 @@
       transform: translateY(-2px);
     }
 
+    .conversations-header {
+      padding: 15px 20px;
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-new-conv {
+      flex: 1;
+      padding: 8px 12px;
+      background: var(--primary);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.9em;
+      transition: all 0.3s ease;
+    }
+
+    .btn-new-conv:hover {
+      background: var(--primary-dark);
+      transform: scale(1.02);
+    }
+
+    .search-box {
+      padding: 10px 15px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.9em;
+      margin: 0 15px 10px;
+    }
+
     .conversations-list {
       flex: 1;
       overflow-y: auto;
@@ -114,13 +156,14 @@
       padding: 12px;
       margin-bottom: 8px;
       background: var(--bg-tertiary);
-      border: 1px solid transparent;
-      border-radius: 8px;
+      border: 2px solid transparent;
+      border-radius: 12px;
       cursor: pointer;
       transition: all 0.3s ease;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
+      position: relative;
     }
 
     .conversation-item:hover {
@@ -135,16 +178,33 @@
     }
 
     .conversation-avatar {
-      width: 36px;
-      height: 36px;
+      width: 40px;
+      height: 40px;
       border-radius: 50%;
       background: linear-gradient(135deg, #10b981, #059669);
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: bold;
-      font-size: 0.85em;
+      font-size: 0.9em;
+      color: white;
       flex-shrink: 0;
+      position: relative;
+    }
+
+    .conversation-avatar.group {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+    }
+
+    .online-indicator {
+      width: 10px;
+      height: 10px;
+      background: var(--success);
+      border-radius: 50%;
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      border: 2px solid var(--bg-secondary);
     }
 
     .conversation-info {
@@ -154,7 +214,7 @@
 
     .conversation-name {
       font-size: 0.95em;
-      font-weight: 500;
+      font-weight: 600;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -166,23 +226,20 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      margin-top: 2px;
     }
 
-    .new-conversation-btn {
-      margin: 10px;
-      padding: 10px;
-      background: var(--primary);
-      border: none;
-      border-radius: 8px;
-      color: white;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-
-    .new-conversation-btn:hover {
-      background: var(--primary-dark);
-      transform: scale(1.02);
+    .unread-badge {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      background: var(--danger);
+      border-radius: 50%;
+      font-size: 0.7em;
+      font-weight: 700;
+      flex-shrink: 0;
     }
 
     /* ===== MAIN CHAT ===== */
@@ -204,14 +261,35 @@
       flex-shrink: 0;
     }
 
+    .chat-header-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .chat-title-group {
+      display: flex;
+      flex-direction: column;
+    }
+
     .chat-title {
-      font-size: 1.2em;
+      font-size: 1.1em;
       font-weight: 600;
     }
 
     .chat-status {
       font-size: 0.8em;
       color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--success);
+      border-radius: 50%;
     }
 
     .empty-state {
@@ -238,24 +316,50 @@
       display: flex;
       flex-direction: column;
       gap: 12px;
-      min-height: 0; /* Important pour flexbox */
+      min-height: 0;
     }
 
-    .message {
+    .message-group {
       display: flex;
+      gap: 12px;
+      margin-bottom: 8px;
       animation: fadeInUp 0.3s ease-out;
     }
 
-    .message.own {
+    .message-group.own {
       justify-content: flex-end;
     }
 
-    .message.other {
+    .message-group.other {
       justify-content: flex-start;
     }
 
+    .message-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #60a5fa, #3b82f6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8em;
+      font-weight: bold;
+      color: white;
+      flex-shrink: 0;
+    }
+
+    .message-group.own .message-avatar {
+      display: none;
+    }
+
+    .message-bubble {
+      max-width: 55%;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
     .message-content {
-      max-width: 60%;
       padding: 12px 16px;
       border-radius: 12px;
       word-wrap: break-word;
@@ -264,12 +368,12 @@
       gap: 4px;
     }
 
-    .message.own .message-content {
+    .message-group.own .message-content {
       background: var(--message-user);
       border-bottom-right-radius: 4px;
     }
 
-    .message.other .message-content {
+    .message-group.other .message-content {
       background: var(--message-other);
       border-bottom-left-radius: 4px;
     }
@@ -279,33 +383,107 @@
       line-height: 1.4;
     }
 
+    .message-sender {
+      font-size: 0.75em;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+
     .message-time {
       font-size: 0.75em;
       color: rgba(255, 255, 255, 0.6);
     }
 
-    .message-delete {
-      opacity: 0;
-      width: 20px;
-      height: 20px;
-      padding: 0;
-      margin-left: 8px;
-      background: var(--danger);
-      border: none;
-      border-radius: 4px;
-      color: white;
-      font-size: 0.7em;
-      cursor: pointer;
-      transition: all 0.3s ease;
+    .message-reactions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
     }
 
-    .message.own:hover .message-delete {
+    .reaction {
+      background: var(--bg-tertiary);
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.85em;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .reaction:hover {
+      background: var(--border);
+      transform: scale(1.1);
+    }
+
+    .reaction-count {
+      font-size: 0.7em;
+      color: var(--text-secondary);
+    }
+
+    .message-actions {
+      display: flex;
+      gap: 6px;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .message-group.own:hover .message-actions {
       opacity: 1;
     }
 
-    .message-delete:hover {
-      background: #dc2626;
-      transform: scale(1.1);
+    .btn-action {
+      width: 24px;
+      height: 24px;
+      border: none;
+      background: var(--bg-tertiary);
+      color: var(--text);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8em;
+      transition: all 0.2s ease;
+    }
+
+    .btn-action:hover {
+      background: var(--danger);
+    }
+
+    .typing-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-secondary);
+      font-size: 0.9em;
+      margin: 10px 0;
+      padding: 0 20px;
+    }
+
+    .typing-dots {
+      display: flex;
+      gap: 3px;
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      background: currentColor;
+      border-radius: 50%;
+      animation: typing 1.4s infinite;
+    }
+
+    .dot:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .dot:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes typing {
+      0%, 60%, 100% { opacity: 0.3; }
+      30% { opacity: 1; }
     }
 
     .input-area {
@@ -345,8 +523,8 @@
       box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
     }
 
-    .send-btn {
-      padding: 12px 24px;
+    .send-btn, .emoji-btn {
+      padding: 12px 20px;
       background: var(--primary);
       border: none;
       border-radius: 8px;
@@ -355,6 +533,9 @@
       cursor: pointer;
       transition: all 0.3s ease;
       height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .send-btn:hover:not(:disabled) {
@@ -362,12 +543,50 @@
       transform: translateY(-2px);
     }
 
-    .send-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
+    .emoji-btn {
+      background: var(--bg-tertiary);
+      color: var(--text);
+      width: 44px;
+      padding: 0;
     }
 
-    /* ===== AUTH SCREEN ===== */
+    .emoji-btn:hover {
+      background: var(--border);
+    }
+
+    /* ===== EMOJI PICKER ===== */
+    .emoji-picker {
+      position: absolute;
+      bottom: 60px;
+      right: 20px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      z-index: 100;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+      animation: slideUp 0.3s ease-out;
+    }
+
+    .emoji-option {
+      font-size: 1.5em;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+
+    .emoji-option:hover {
+      transform: scale(1.2);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* ===== AUTH ===== */
     .auth-container {
       display: flex;
       flex-direction: column;
@@ -382,7 +601,7 @@
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 40px;
-      max-width: 400px;
+      max-width: 420px;
       width: 100%;
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
       animation: slideUp 0.6s ease-out;
@@ -395,12 +614,6 @@
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
-    }
-
-    .auth-card p {
-      color: var(--text-secondary);
-      margin-bottom: 30px;
-      font-size: 0.95em;
     }
 
     .form-group {
@@ -429,9 +642,7 @@
       transition: all 0.3s ease;
     }
 
-    input[type="email"]:focus,
-    input[type="password"]:focus,
-    input[type="text"]:focus {
+    input:focus {
       outline: none;
       border-color: var(--primary);
       box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
@@ -519,15 +730,18 @@
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 30px;
-      max-width: 400px;
+      max-width: 450px;
       width: 90%;
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
       animation: slideUp 0.3s ease-out;
+      max-height: 80vh;
+      overflow-y: auto;
     }
 
     .modal-content h2 {
       margin-bottom: 20px;
       color: var(--text);
+      font-size: 1.3em;
     }
 
     .modal-buttons {
@@ -557,58 +771,63 @@
       color: var(--text);
     }
 
+    .member-list {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      margin: 12px 0;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .member-item {
+      padding: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+      background: var(--bg-tertiary);
+      border-radius: 6px;
+    }
+
+    .member-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #60a5fa, #3b82f6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75em;
+      color: white;
+      flex-shrink: 0;
+    }
+
     /* ===== ANIMATIONS ===== */
     @keyframes slideInLeft {
-      from {
-        transform: translateX(-300px);
-        opacity: 0;
-      }
-      to {
-        transform: translateX(0);
-        opacity: 1;
-      }
+      from { transform: translateX(-320px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
     }
 
     @keyframes slideUp {
-      from {
-        transform: translateY(20px);
-        opacity: 0;
-      }
-      to {
-        transform: translateY(0);
-        opacity: 1;
-      }
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
     }
 
     @keyframes fadeInUp {
-      from {
-        transform: translateY(10px);
-        opacity: 0;
-      }
-      to {
-        transform: translateY(0);
-        opacity: 1;
-      }
+      from { transform: translateY(10px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
     }
 
     @keyframes slideDown {
-      from {
-        transform: translateY(-10px);
-        opacity: 0;
-      }
-      to {
-        transform: translateY(0);
-        opacity: 1;
-      }
+      from { transform: translateY(-10px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
     }
 
     @keyframes fadeIn {
-      from {
-        opacity: 0;
-      }
-      to {
-        opacity: 1;
-      }
+      from { opacity: 0; }
+      to { opacity: 1; }
     }
 
     /* ===== SCROLLBAR ===== */
@@ -639,20 +858,8 @@
         display: none;
       }
 
-      .app-container.chat-open .sidebar {
-        display: flex;
-        position: absolute;
-        left: 0;
-        top: 0;
-        height: 100%;
-        z-index: 100;
-        width: 100%;
-        border-right: none;
-        border-bottom: none;
-      }
-
-      .message-content {
-        max-width: 80%;
+      .message-bubble {
+        max-width: 85%;
       }
     }
   </style>
@@ -662,8 +869,8 @@
 <!-- Auth Screen -->
 <div id="authScreen" class="auth-container">
   <div class="auth-card">
-    <h1>💬 Messagerie</h1>
-    <p>Connectez-vous pour discuter</p>
+    <h1>💬 Chat Pro</h1>
+    <p id="authSubtitle">Connectez-vous pour discuter</p>
     
     <div id="authError"></div>
 
@@ -677,9 +884,9 @@
       <input type="password" id="password" placeholder="••••••••">
     </div>
 
-    <div class="form-group">
-      <label for="displayName" id="displayNameLabel" style="display:none;">Nom d'affichage</label>
-      <input type="text" id="displayName" placeholder="Votre nom" style="display:none;">
+    <div class="form-group" id="displayNameGroup" style="display:none;">
+      <label for="displayName">Nom d'affichage</label>
+      <input type="text" id="displayName" placeholder="Votre nom">
     </div>
 
     <div class="auth-buttons">
@@ -699,17 +906,26 @@
         <div class="avatar" id="userAvatar">A</div>
         <div class="user-details">
           <h3 id="userName">Utilisateur</h3>
-          <small>En ligne</small>
+          <small>✓ En ligne</small>
         </div>
       </div>
       <button class="logout-btn" id="logoutBtn">Déconnexion</button>
     </div>
 
-    <button class="new-conversation-btn" id="newConversationBtn">+ Nouvelle conversation</button>
+    <div class="conversations-header">
+      <button class="btn-new-conv" id="newConversationBtn" title="Nouvelle conversation">
+        <i class="fas fa-plus"></i> 1-to-1
+      </button>
+      <button class="btn-new-conv" id="newGroupBtn" title="Nouveau groupe" style="flex:0.8;">
+        <i class="fas fa-users"></i> Groupe
+      </button>
+    </div>
+
+    <input type="text" class="search-box" id="searchConversations" placeholder="🔍 Chercher...">
 
     <div class="conversations-list" id="conversationsList">
       <div style="text-align: center; color: var(--text-secondary); padding: 20px;">
-        Pas de conversations
+        Aucune conversation
       </div>
     </div>
   </div>
@@ -717,16 +933,25 @@
   <!-- Main Chat -->
   <div class="main-content">
     <div id="noConversationSelected" class="empty-state">
-      <h2>Sélectionnez une conversation</h2>
-      <p>Ou créez une nouvelle pour commencer à discuter</p>
+      <h2>👋 Bienvenue!</h2>
+      <p>Sélectionnez une conversation ou créez-en une nouvelle</p>
     </div>
 
     <div id="chatWindow" style="display:none; display:flex; flex-direction:column;">
       <div class="chat-header">
-        <div>
-          <div class="chat-title" id="chatPartnerName">Conversation</div>
-          <div class="chat-status" id="chatPartnerStatus">En attente...</div>
+        <div class="chat-header-info">
+          <div class="avatar" id="chatAvatar">A</div>
+          <div class="chat-title-group">
+            <div class="chat-title" id="chatTitle">Conversation</div>
+            <div class="chat-status" id="chatStatus">
+              <span class="status-dot"></span>
+              <span id="statusText">En ligne</span>
+            </div>
+          </div>
         </div>
+        <button id="infoBtn" style="background: none; border: none; color: var(--text); cursor: pointer; font-size: 1.2em;">
+          <i class="fas fa-info-circle"></i>
+        </button>
       </div>
 
       <div class="messages-container" id="messagesContainer"></div>
@@ -735,47 +960,99 @@
         <div class="input-wrapper">
           <textarea class="message-input" id="messageInput" placeholder="Écrivez un message..." rows="1"></textarea>
         </div>
+        <button class="emoji-btn" id="emojiBtn" title="Réactions">
+          <i class="fas fa-smile"></i>
+        </button>
         <button class="send-btn" id="sendBtn">Envoyer</button>
       </div>
     </div>
   </div>
+
+  <!-- Emoji Picker -->
+  <div class="emoji-picker hidden" id="emojiPicker">
+    <div class="emoji-option" data-emoji="👍">👍</div>
+    <div class="emoji-option" data-emoji="❤️">❤️</div>
+    <div class="emoji-option" data-emoji="😂">😂</div>
+    <div class="emoji-option" data-emoji="🎉">🎉</div>
+    <div class="emoji-option" data-emoji="🔥">🔥</div>
+    <div class="emoji-option" data-emoji="😍">😍</div>
+    <div class="emoji-option" data-emoji="😱">😱</div>
+    <div class="emoji-option" data-emoji="🤔">🤔</div>
+    <div class="emoji-option" data-emoji="😴">😴</div>
+    <div class="emoji-option" data-emoji="💯">💯</div>
+  </div>
 </div>
 
-<!-- Modal Nouvelle Conversation -->
+<!-- Modal Nouvelle Conversation (1-to-1) -->
 <div id="newConversationModal" class="modal">
   <div class="modal-content">
-    <h2>Nouvelle conversation</h2>
+    <h2>💬 Nouvelle conversation</h2>
     <div class="form-group">
       <label for="recipientEmail">Email du destinataire</label>
       <input type="email" id="recipientEmail" placeholder="ami@exemple.com">
     </div>
-    <div id="modalError"></div>
+    <div id="conversationError"></div>
     <div class="modal-buttons">
-      <button class="modal-btn modal-btn-secondary" id="cancelModal">Annuler</button>
+      <button class="modal-btn modal-btn-secondary" id="cancelConversation">Annuler</button>
       <button class="modal-btn modal-btn-primary" id="createConversationBtn">Créer</button>
     </div>
   </div>
 </div>
 
+<!-- Modal Nouveau Groupe -->
+<div id="newGroupModal" class="modal">
+  <div class="modal-content">
+    <h2>👥 Nouveau groupe</h2>
+    <div class="form-group">
+      <label for="groupName">Nom du groupe</label>
+      <input type="text" id="groupName" placeholder="Nom du groupe">
+    </div>
+    <div class="form-group">
+      <label>Membres (Email)</label>
+      <div id="membersList" class="member-list"></div>
+      <input type="email" id="memberEmail" placeholder="Ajouter un membre..." style="margin-top: 10px;">
+      <button id="addMemberBtn" style="width: 100%; margin-top: 8px; padding: 8px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer;">Ajouter</button>
+    </div>
+    <div id="groupError"></div>
+    <div class="modal-buttons">
+      <button class="modal-btn modal-btn-secondary" id="cancelGroup">Annuler</button>
+      <button class="modal-btn modal-btn-primary" id="createGroupBtn">Créer le groupe</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Infos Groupe -->
+<div id="groupInfoModal" class="modal">
+  <div class="modal-content">
+    <h2 id="groupInfoTitle">Infos du groupe</h2>
+    <div id="groupInfoMembers"></div>
+    <div class="modal-buttons">
+      <button class="modal-btn modal-btn-secondary" id="closeGroupInfo">Fermer</button>
+    </div>
+  </div>
+</div>
+
 <script>
-  // ===== CONFIGURATION SUPABASE =====
+  // ===== CONFIG =====
   const SUPABASE_URL = 'https://nwwuolbafiacxcqtkuri.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_XGosWkveljvqaqSYuLEuMQ_b-otnH9b';
+
+  const REACTION_EMOJIS = ['👍', '❤️', '😂', '🎉', '🔥', '😍', '😱', '🤔', '😴', '💯'];
 
   let supabaseClient = null;
   let currentUser = null;
   let currentConversation = null;
   let messageSubscription = null;
+  let typingTimeout = null;
   let isSignUpMode = false;
+  let selectedMembers = [];
 
   // Initialisation
   document.addEventListener('DOMContentLoaded', initApp);
 
   async function initApp() {
-    // Vérifier configuration
-    if (SUPABASE_URL === 'https://YOUR_PROJECT.supabase.co' || 
-        SUPABASE_KEY === 'SUPABASE_KEY') {
-      showError('authError', '⚙️ Configurez vos credentials Supabase dans le code');
+    if (SUPABASE_URL === 'https://YOUR_URL.supabase.co' || SUPABASE_KEY === 'YOUR_KEY') {
+      showError('authError', '⚙️ Configurez vos credentials Supabase');
       return;
     }
 
@@ -783,29 +1060,46 @@
       const { createClient } = window.supabase;
       supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-      // Attacher les événements
+      // Event listeners
       document.getElementById('toggleAuth').addEventListener('click', toggleAuthMode);
       document.getElementById('authSubmit').addEventListener('click', handleAuth);
       document.getElementById('logoutBtn').addEventListener('click', logout);
-      document.getElementById('newConversationBtn').addEventListener('click', openNewConversationModal);
-      document.getElementById('cancelModal').addEventListener('click', closeNewConversationModal);
+      document.getElementById('newConversationBtn').addEventListener('click', () => openModal('newConversationModal'));
+      document.getElementById('newGroupBtn').addEventListener('click', () => openModal('newGroupModal'));
+      document.getElementById('cancelConversation').addEventListener('click', () => closeModal('newConversationModal'));
+      document.getElementById('cancelGroup').addEventListener('click', () => closeModal('newGroupModal'));
       document.getElementById('createConversationBtn').addEventListener('click', createConversation);
+      document.getElementById('createGroupBtn').addEventListener('click', createGroup);
+      document.getElementById('addMemberBtn').addEventListener('click', addGroupMember);
+      document.getElementById('closeGroupInfo').addEventListener('click', () => closeModal('groupInfoModal'));
+      document.getElementById('infoBtn').addEventListener('click', showGroupInfo);
       document.getElementById('sendBtn').addEventListener('click', sendMessage);
+      document.getElementById('emojiBtn').addEventListener('click', toggleEmojiPicker);
       document.getElementById('messageInput').addEventListener('keypress', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
           sendMessage();
         }
       });
+      document.getElementById('messageInput').addEventListener('input', onTyping);
+      document.getElementById('searchConversations').addEventListener('input', filterConversations);
 
-      // Vérifier si utilisateur déjà connecté
+      // Emoji picker
+      document.querySelectorAll('.emoji-option').forEach(opt => {
+        opt.addEventListener('click', (e) => {
+          addReaction(e.target.dataset.emoji);
+          toggleEmojiPicker();
+        });
+      });
+
+      // Vérifier si utilisateur connecté
       const { data: { user } } = await supabaseClient.auth.getUser();
       if (user) {
         currentUser = user;
         loadChatApp();
       }
     } catch (error) {
-      showError('authError', 'Erreur d\'initialisation: ' + error.message);
+      showError('authError', 'Erreur: ' + error.message);
     }
   }
 
@@ -828,35 +1122,19 @@
       let result;
       
       if (isSignUpMode) {
-        result = await supabaseClient.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { display_name: displayName }
-          }
-        });
-
+        result = await supabaseClient.auth.signUp({ email, password });
         if (result.error) throw result.error;
         
-        // Créer le profil utilisateur
         const { error: profileError } = await supabaseClient
           .from('user_profiles')
-          .insert([{
-            id: result.data.user.id,
-            email,
-            display_name: displayName
-          }]);
+          .insert([{ id: result.data.user.id, email, display_name: displayName }]);
 
         if (profileError) throw profileError;
 
-        showSuccess('authError', 'Compte créé ! Connectez-vous maintenant.');
+        showSuccess('authError', 'Compte créé ! Connectez-vous.');
         toggleAuthMode();
       } else {
-        result = await supabaseClient.auth.signInWithPassword({
-          email,
-          password
-        });
-
+        result = await supabaseClient.auth.signInWithPassword({ email, password });
         if (result.error) throw result.error;
 
         currentUser = result.data.user;
@@ -871,19 +1149,18 @@
     isSignUpMode = !isSignUpMode;
     const btn = document.getElementById('toggleAuth');
     const submit = document.getElementById('authSubmit');
-    const label = document.getElementById('displayNameLabel');
-    const input = document.getElementById('displayName');
+    const group = document.getElementById('displayNameGroup');
 
     if (isSignUpMode) {
       btn.textContent = 'Se connecter';
       submit.textContent = 'Créer un compte';
-      label.style.display = 'block';
-      input.style.display = 'block';
+      group.style.display = 'block';
+      document.getElementById('authSubtitle').textContent = 'Créez un nouveau compte';
     } else {
       btn.textContent = 'Créer un compte';
       submit.textContent = 'Se connecter';
-      label.style.display = 'none';
-      input.style.display = 'none';
+      group.style.display = 'none';
+      document.getElementById('authSubtitle').textContent = 'Connectez-vous pour discuter';
     }
     document.getElementById('authError').innerHTML = '';
   }
@@ -893,11 +1170,12 @@
       await supabaseClient.auth.signOut();
       currentUser = null;
       currentConversation = null;
+      selectedMembers = [];
       document.getElementById('authScreen').style.display = 'flex';
       document.getElementById('chatApp').style.display = 'none';
-      if (messageSubscription) messageSubscription.unsubscribe();
+      if (messageSubscription) await messageSubscription.unsubscribe();
     } catch (error) {
-      console.error('Erreur déconnexion:', error);
+      console.error('Erreur:', error);
     }
   }
 
@@ -906,7 +1184,6 @@
       document.getElementById('authScreen').style.display = 'none';
       document.getElementById('chatApp').style.display = 'grid';
 
-      // Charger le profil utilisateur
       const { data: profile } = await supabaseClient
         .from('user_profiles')
         .select('*')
@@ -914,125 +1191,144 @@
         .single();
 
       if (profile) {
-        document.getElementById('userName').textContent = profile.display_name || 'Utilisateur';
-        document.getElementById('userAvatar').textContent = profile.display_name?.charAt(0).toUpperCase() || 'U';
+        document.getElementById('userName').textContent = profile.display_name;
+        document.getElementById('userAvatar').textContent = profile.display_name?.charAt(0).toUpperCase();
       }
 
-      // Charger les conversations
       loadConversations();
     } catch (error) {
-      console.error('Erreur chargement app:', error);
+      console.error('Erreur:', error);
     }
   }
 
   async function loadConversations() {
     try {
+      const { data: members } = await supabaseClient
+        .from('conversation_members')
+        .select('conversation_id')
+        .eq('user_id', currentUser.id);
+
+      if (!members || members.length === 0) {
+        document.getElementById('conversationsList').innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 20px;">Aucune conversation</div>';
+        return;
+      }
+
+      const convIds = members.map(m => m.conversation_id);
+
       const { data: conversations } = await supabaseClient
         .from('conversations')
         .select(`
           *,
-          participant1:user_profiles!conversations_participant1_id_fkey(id, display_name),
-          participant2:user_profiles!conversations_participant2_id_fkey(id, display_name)
+          members:conversation_members(user_id, user:user_profiles(id, display_name)),
+          last_message:messages(content, created_at, sender_id)
         `)
-        .or(`participant1_id.eq.${currentUser.id},participant2_id.eq.${currentUser.id}`);
+        .in('id', convIds)
+        .order('updated_at', { ascending: false });
 
       const list = document.getElementById('conversationsList');
       
       if (!conversations || conversations.length === 0) {
-        list.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 20px;">Pas de conversations</div>';
+        list.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 20px;">Aucune conversation</div>';
         return;
       }
 
       list.innerHTML = conversations.map(conv => {
-        const otherParticipant = conv.participant1_id === currentUser.id ? conv.participant2 : conv.participant1;
+        let name, preview;
+        
+        if (conv.is_group) {
+          name = conv.name;
+          preview = `👥 ${conv.members.length} membres`;
+        } else {
+          const otherMember = conv.members.find(m => m.user_id !== currentUser.id);
+          name = otherMember?.user?.display_name || 'Utilisateur';
+          preview = conv.last_message?.[0]?.content?.substring(0, 30) || 'Aucun message';
+        }
+
+        const avatarText = name.charAt(0).toUpperCase();
+        const avatarClass = conv.is_group ? 'group' : '';
+
         return `
           <div class="conversation-item" onclick="selectConversation('${conv.id}')">
-            <div class="conversation-avatar">${otherParticipant.display_name.charAt(0).toUpperCase()}</div>
+            <div class="conversation-avatar ${avatarClass}">
+              ${conv.is_group ? '<i class="fas fa-users"></i>' : avatarText}
+            </div>
             <div class="conversation-info">
-              <div class="conversation-name">${otherParticipant.display_name}</div>
-              <div class="conversation-preview" id="preview-${conv.id}">Aucun message</div>
+              <div class="conversation-name">${escapeHtml(name)}</div>
+              <div class="conversation-preview">${escapeHtml(preview)}</div>
             </div>
           </div>
         `;
       }).join('');
     } catch (error) {
-      console.error('Erreur chargement conversations:', error);
+      console.error('Erreur:', error);
     }
   }
 
-  async function selectConversation(conversationId) {
+  async function selectConversation(convId) {
     try {
-      currentConversation = conversationId;
+      currentConversation = convId;
 
-      // Mettre à jour l'UI
-      document.querySelectorAll('.conversation-item').forEach(item => {
-        item.classList.remove('active');
-      });
+      document.querySelectorAll('.conversation-item').forEach(item => item.classList.remove('active'));
       event.currentTarget.classList.add('active');
 
-      // Charger les infos de la conversation
-      const { data: conversation } = await supabaseClient
+      const { data: conv } = await supabaseClient
         .from('conversations')
         .select(`
           *,
-          participant1:user_profiles!conversations_participant1_id_fkey(id, display_name),
-          participant2:user_profiles!conversations_participant2_id_fkey(id, display_name)
+          members:conversation_members(user_id, user:user_profiles(id, display_name))
         `)
-        .eq('id', conversationId)
+        .eq('id', convId)
         .single();
 
-      const otherParticipant = conversation.participant1_id === currentUser.id ? conversation.participant2 : conversation.participant1;
-      document.getElementById('chatPartnerName').textContent = otherParticipant.display_name;
-      document.getElementById('chatPartnerStatus').textContent = 'En ligne';
+      if (conv.is_group) {
+        document.getElementById('chatTitle').textContent = conv.name;
+        document.getElementById('statusText').textContent = `${conv.members.length} membres`;
+        document.getElementById('chatAvatar').textContent = '👥';
+        document.getElementById('chatAvatar').className = 'avatar group';
+        document.getElementById('infoBtn').style.display = 'block';
+      } else {
+        const otherMember = conv.members.find(m => m.user_id !== currentUser.id);
+        document.getElementById('chatTitle').textContent = otherMember?.user?.display_name || 'Utilisateur';
+        document.getElementById('statusText').textContent = 'En ligne';
+        document.getElementById('chatAvatar').textContent = otherMember?.user?.display_name?.charAt(0).toUpperCase();
+        document.getElementById('chatAvatar').className = 'avatar';
+        document.getElementById('infoBtn').style.display = 'none';
+      }
 
       document.getElementById('noConversationSelected').style.display = 'none';
       document.getElementById('chatWindow').style.display = 'flex';
 
-      // Charger les messages
       loadMessages();
 
-      // S'abonner aux nouveaux messages en temps réel
       if (messageSubscription) {
         await messageSubscription.unsubscribe();
       }
       
       messageSubscription = supabaseClient
-        .channel(`messages:${conversationId}`, {
-          config: {
-            broadcast: { self: true },
-            presence: { key: currentUser.id }
-          }
-        })
+        .channel(`messages:${convId}`)
         .on('postgres_changes', 
-          { 
-            event: 'INSERT', 
-            schema: 'public', 
-            table: 'messages', 
-            filter: `conversation_id=eq.${conversationId}` 
-          },
-          (payload) => {
-            // Actualiser les messages immédiatement
-            loadMessages();
-          }
+          { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${convId}` },
+          () => loadMessages()
         )
         .on('postgres_changes',
-          {
-            event: 'DELETE',
-            schema: 'public',
-            table: 'messages',
-            filter: `conversation_id=eq.${conversationId}`
-          },
-          (payload) => {
-            loadMessages();
-          }
+          { event: 'DELETE', schema: 'public', table: 'messages', filter: `conversation_id=eq.${convId}` },
+          () => loadMessages()
         )
-        .subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            console.log('✅ Abonné aux messages en temps réel');
-          }
-        });
+        .on('postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'message_reactions', filter: `message_id=in.(SELECT id FROM messages WHERE conversation_id=eq.${convId})` },
+          () => loadMessages()
+        )
+        .on('postgres_changes',
+          { event: 'DELETE', schema: 'public', table: 'message_reactions', filter: `message_id=in.(SELECT id FROM messages WHERE conversation_id=eq.${convId})` },
+          () => loadMessages()
+        )
+        .on('postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'typing_indicators', filter: `conversation_id=eq.${convId}` },
+          () => showTypingIndicator()
+        )
+        .subscribe();
     } catch (error) {
-      console.error('Erreur sélection conversation:', error);
+      console.error('Erreur:', error);
     }
   }
 
@@ -1040,27 +1336,62 @@
     try {
       const { data: messages } = await supabaseClient
         .from('messages')
-        .select('*')
+        .select(`
+          *,
+          sender:user_profiles(id, display_name),
+          reactions:message_reactions(id, user_id, emoji)
+        `)
         .eq('conversation_id', currentConversation)
         .order('created_at', { ascending: true });
 
       const container = document.getElementById('messagesContainer');
-      container.innerHTML = (messages || []).map(msg => `
-        <div class="message ${msg.sender_id === currentUser.id ? 'own' : 'other'}">
-          <div class="message-content">
-            <div class="message-text">${escapeHtml(msg.content)}</div>
-            <div class="message-time">${new Date(msg.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>
-            ${msg.sender_id === currentUser.id ? `<button class="message-delete" onclick="deleteMessage('${msg.id}')">✕</button>` : ''}
-          </div>
-        </div>
-      `).join('');
+      
+      if (!messages) {
+        container.innerHTML = '';
+        return;
+      }
 
-      // Scroll automatique vers le bas
+      container.innerHTML = messages.map(msg => {
+        const isOwn = msg.sender_id === currentUser.id;
+        const groupReactions = {};
+        
+        msg.reactions.forEach(reaction => {
+          if (!groupReactions[reaction.emoji]) groupReactions[reaction.emoji] = [];
+          groupReactions[reaction.emoji].push(reaction.user_id);
+        });
+
+        const reactionsHtml = Object.entries(groupReactions).map(([emoji, users]) => `
+          <div class="reaction" onclick="toggleReaction('${msg.id}', '${emoji}', event)">
+            ${emoji} <span class="reaction-count">${users.length}</span>
+          </div>
+        `).join('');
+
+        return `
+          <div class="message-group ${isOwn ? 'own' : 'other'}">
+            ${!isOwn ? `<div class="message-avatar">${msg.sender.display_name.charAt(0).toUpperCase()}</div>` : ''}
+            <div class="message-bubble">
+              ${!isOwn ? `<div class="message-sender">${escapeHtml(msg.sender.display_name)}</div>` : ''}
+              <div style="display: flex; align-items: flex-start; gap: 8px;">
+                <div class="message-content">
+                  <div class="message-text">${escapeHtml(msg.content)}</div>
+                  <div class="message-time">${new Date(msg.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>
+                  ${reactionsHtml ? `<div class="message-reactions">${reactionsHtml}</div>` : ''}
+                </div>
+                <div class="message-actions">
+                  ${isOwn ? `<button class="btn-action" onclick="deleteMessage('${msg.id}')">✕</button>` : ''}
+                  <button class="btn-action" onclick="showReactionPicker('${msg.id}')" style="background: var(--primary);">😊</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
       setTimeout(() => {
         container.scrollTop = container.scrollHeight;
       }, 0);
     } catch (error) {
-      console.error('Erreur chargement messages:', error);
+      console.error('Erreur:', error);
     }
   }
 
@@ -1082,9 +1413,10 @@
       if (error) throw error;
 
       input.value = '';
+      clearTypingIndicator();
       await loadMessages();
     } catch (error) {
-      console.error('Erreur envoi message:', error);
+      console.error('Erreur:', error);
     }
   }
 
@@ -1100,35 +1432,178 @@
       if (error) throw error;
       await loadMessages();
     } catch (error) {
-      console.error('Erreur suppression:', error);
+      console.error('Erreur:', error);
     }
   }
 
-  function openNewConversationModal() {
-    document.getElementById('newConversationModal').classList.add('active');
+  function showReactionPicker(messageId) {
+    const picker = document.getElementById('emojiPicker');
+    picker.style.position = 'fixed';
+    picker.style.bottom = '80px';
+    picker.style.right = '20px';
+    picker.style.zIndex = '101';
+    picker.classList.remove('hidden');
+    picker.dataset.messageId = messageId;
   }
 
-  function closeNewConversationModal() {
-    document.getElementById('newConversationModal').classList.remove('active');
-    document.getElementById('recipientEmail').value = '';
-    document.getElementById('modalError').innerHTML = '';
+  function toggleEmojiPicker() {
+    const picker = document.getElementById('emojiPicker');
+    picker.classList.toggle('hidden');
+  }
+
+  async function addReaction(emoji) {
+    const messageId = document.getElementById('emojiPicker').dataset.messageId;
+    if (!messageId) return;
+
+    try {
+      const { data: existing } = await supabaseClient
+        .from('message_reactions')
+        .select('id')
+        .eq('message_id', messageId)
+        .eq('user_id', currentUser.id)
+        .eq('emoji', emoji)
+        .single();
+
+      if (existing) {
+        await supabaseClient
+          .from('message_reactions')
+          .delete()
+          .eq('id', existing.id);
+      } else {
+        await supabaseClient
+          .from('message_reactions')
+          .insert([{
+            message_id: messageId,
+            user_id: currentUser.id,
+            emoji
+          }]);
+      }
+
+      await loadMessages();
+    } catch (error) {
+      console.error('Erreur:', error);
+    }
+  }
+
+  async function toggleReaction(messageId, emoji, event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    try {
+      const { data: existing } = await supabaseClient
+        .from('message_reactions')
+        .select('id')
+        .eq('message_id', messageId)
+        .eq('user_id', currentUser.id)
+        .eq('emoji', emoji)
+        .single();
+
+      if (existing) {
+        await supabaseClient
+          .from('message_reactions')
+          .delete()
+          .eq('id', existing.id);
+      } else {
+        await supabaseClient
+          .from('message_reactions')
+          .insert([{
+            message_id: messageId,
+            user_id: currentUser.id,
+            emoji
+          }]);
+      }
+
+      await loadMessages();
+    } catch (error) {
+      // Reaction n'existe pas, on l'ajoute
+      try {
+        await supabaseClient
+          .from('message_reactions')
+          .insert([{
+            message_id: messageId,
+            user_id: currentUser.id,
+            emoji
+          }]);
+        await loadMessages();
+      } catch (e) {
+        console.error('Erreur:', e);
+      }
+    }
+  }
+
+  function onTyping() {
+    clearTimeout(typingTimeout);
+
+    supabaseClient
+      .from('typing_indicators')
+      .insert([{
+        conversation_id: currentConversation,
+        user_id: currentUser.id
+      }])
+      .then(() => {
+        typingTimeout = setTimeout(() => {
+          clearTypingIndicator();
+        }, 3000);
+      });
+  }
+
+  async function clearTypingIndicator() {
+    try {
+      await supabaseClient
+        .from('typing_indicators')
+        .delete()
+        .eq('conversation_id', currentConversation)
+        .eq('user_id', currentUser.id);
+    } catch (error) {
+      console.error('Erreur:', error);
+    }
+  }
+
+  async function showTypingIndicator() {
+    try {
+      const { data: typing } = await supabaseClient
+        .from('typing_indicators')
+        .select('user:user_profiles(display_name)')
+        .eq('conversation_id', currentConversation)
+        .neq('user_id', currentUser.id);
+
+      if (typing && typing.length > 0) {
+        const typingUsers = typing.map(t => t.user.display_name).join(', ');
+        const indicator = document.querySelector('.typing-indicator');
+        
+        if (!indicator) {
+          const html = `
+            <div class="typing-indicator">
+              <span>${typingUsers} est en train d'écrire</span>
+              <div class="typing-dots">
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+              </div>
+            </div>
+          `;
+          document.getElementById('messagesContainer').insertAdjacentHTML('beforeend', html);
+        }
+      }
+    } catch (error) {
+      console.error('Erreur:', error);
+    }
   }
 
   async function createConversation() {
     const email = document.getElementById('recipientEmail').value.trim();
 
     if (!email) {
-      showError('modalError', 'Email requis');
+      showError('conversationError', 'Email requis');
       return;
     }
 
     if (email === currentUser.email) {
-      showError('modalError', 'Impossible de créer une conversation avec soi-même');
+      showError('conversationError', 'Impossible de créer une conversation avec soi-même');
       return;
     }
 
     try {
-      // Trouver l'utilisateur par email
       const { data: recipient } = await supabaseClient
         .from('user_profiles')
         .select('id')
@@ -1136,37 +1611,186 @@
         .single();
 
       if (!recipient) {
-        showError('modalError', 'Utilisateur non trouvé');
+        showError('conversationError', 'Utilisateur non trouvé');
         return;
       }
 
-      // Vérifier si conversation existe déjà
       const { data: existingConv } = await supabaseClient
         .from('conversations')
         .select('id')
-        .or(`and(participant1_id.eq.${currentUser.id},participant2_id.eq.${recipient.id}),and(participant1_id.eq.${recipient.id},participant2_id.eq.${currentUser.id})`);
+        .eq('is_group', false);
 
-      if (existingConv && existingConv.length > 0) {
-        showError('modalError', 'Conversation existante avec cet utilisateur');
-        return;
+      for (let conv of existingConv || []) {
+        const { data: members } = await supabaseClient
+          .from('conversation_members')
+          .select('user_id')
+          .eq('conversation_id', conv.id);
+
+        const memberIds = members.map(m => m.user_id);
+        if (memberIds.includes(currentUser.id) && memberIds.includes(recipient.id)) {
+          showError('conversationError', 'Conversation existante');
+          return;
+        }
       }
 
-      // Créer la conversation
       const { data: newConv, error } = await supabaseClient
         .from('conversations')
         .insert([{
-          participant1_id: currentUser.id,
-          participant2_id: recipient.id
+          is_group: false,
+          created_by: currentUser.id
         }])
         .select();
 
       if (error) throw error;
 
-      closeNewConversationModal();
+      await supabaseClient
+        .from('conversation_members')
+        .insert([
+          { conversation_id: newConv[0].id, user_id: currentUser.id },
+          { conversation_id: newConv[0].id, user_id: recipient.id }
+        ]);
+
+      closeModal('newConversationModal');
+      document.getElementById('recipientEmail').value = '';
       await loadConversations();
+      selectConversation(newConv[0].id);
     } catch (error) {
-      showError('modalError', error.message);
+      showError('conversationError', error.message);
     }
+  }
+
+  function addGroupMember() {
+    const email = document.getElementById('memberEmail').value.trim();
+    if (!email || email === currentUser.email) return;
+
+    selectedMembers.push(email);
+    document.getElementById('memberEmail').value = '';
+    updateMembersList();
+  }
+
+  function updateMembersList() {
+    const list = document.getElementById('membersList');
+    list.innerHTML = selectedMembers.map((email, idx) => `
+      <div class="member-item">
+        <div class="member-avatar">${email.charAt(0).toUpperCase()}</div>
+        <span>${escapeHtml(email)}</span>
+        <button onclick="removeMember(${idx})" style="margin-left: auto; background: var(--danger); color: white; border: none; border-radius: 4px; padding: 4px 8px; cursor: pointer;">✕</button>
+      </div>
+    `).join('');
+  }
+
+  function removeMember(idx) {
+    selectedMembers.splice(idx, 1);
+    updateMembersList();
+  }
+
+  async function createGroup() {
+    const name = document.getElementById('groupName').value.trim();
+
+    if (!name) {
+      showError('groupError', 'Nom du groupe requis');
+      return;
+    }
+
+    if (selectedMembers.length === 0) {
+      showError('groupError', 'Ajoutez au moins un membre');
+      return;
+    }
+
+    try {
+      // Récupérer les IDs des membres
+      const { data: members, error: membersError } = await supabaseClient
+        .from('user_profiles')
+        .select('id, email')
+        .in('email', [...selectedMembers, currentUser.email]);
+
+      if (membersError) throw membersError;
+
+      if (members.length !== selectedMembers.length + 1) {
+        showError('groupError', 'Un ou plusieurs utilisateurs n\'existent pas');
+        return;
+      }
+
+      const { data: newGroup, error: groupError } = await supabaseClient
+        .from('conversations')
+        .insert([{
+          name,
+          is_group: true,
+          created_by: currentUser.id
+        }])
+        .select();
+
+      if (groupError) throw groupError;
+
+      const memberInserts = members.map(m => ({
+        conversation_id: newGroup[0].id,
+        user_id: m.id
+      }));
+
+      const { error: memberInsertError } = await supabaseClient
+        .from('conversation_members')
+        .insert(memberInserts);
+
+      if (memberInsertError) throw memberInsertError;
+
+      closeModal('newGroupModal');
+      document.getElementById('groupName').value = '';
+      selectedMembers = [];
+      updateMembersList();
+      await loadConversations();
+      selectConversation(newGroup[0].id);
+    } catch (error) {
+      showError('groupError', error.message);
+    }
+  }
+
+  async function showGroupInfo() {
+    try {
+      const { data: conv } = await supabaseClient
+        .from('conversations')
+        .select(`
+          *,
+          members:conversation_members(user_id, user:user_profiles(id, display_name, email))
+        `)
+        .eq('id', currentConversation)
+        .single();
+
+      const membersHtml = conv.members.map(m => `
+        <div class="member-item">
+          <div class="member-avatar">${m.user.display_name.charAt(0).toUpperCase()}</div>
+          <div>
+            <div>${escapeHtml(m.user.display_name)}</div>
+            <small style="color: var(--text-secondary);">${escapeHtml(m.user.email)}</small>
+          </div>
+        </div>
+      `).join('');
+
+      document.getElementById('groupInfoTitle').textContent = conv.name;
+      document.getElementById('groupInfoMembers').innerHTML = `
+        <h3 style="margin-bottom: 12px; color: var(--text-secondary);">Membres (${conv.members.length})</h3>
+        ${membersHtml}
+      `;
+
+      openModal('groupInfoModal');
+    } catch (error) {
+      console.error('Erreur:', error);
+    }
+  }
+
+  function filterConversations() {
+    const search = document.getElementById('searchConversations').value.toLowerCase();
+    document.querySelectorAll('.conversation-item').forEach(item => {
+      const name = item.querySelector('.conversation-name').textContent.toLowerCase();
+      item.style.display = name.includes(search) ? 'flex' : 'none';
+    });
+  }
+
+  function openModal(modalId) {
+    document.getElementById(modalId).classList.add('active');
+  }
+
+  function closeModal(modalId) {
+    document.getElementById(modalId).classList.remove('active');
   }
 
   function showError(elementId, message) {
@@ -1184,6 +1808,14 @@
     div.textContent = text;
     return div.innerHTML;
   }
+
+  // Fermer emoji picker au clic dehors
+  document.addEventListener('click', (e) => {
+    const picker = document.getElementById('emojiPicker');
+    if (!picker.contains(e.target) && e.target.id !== 'emojiBtn' && !e.target.closest('#emojiBtn')) {
+      picker.classList.add('hidden');
+    }
+  });
 </script>
 
 </body>
