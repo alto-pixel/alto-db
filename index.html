@@ -190,6 +190,8 @@
       display: flex;
       flex-direction: column;
       background: var(--bg);
+      height: 100%;
+      overflow: hidden;
     }
 
     .chat-header {
@@ -199,6 +201,7 @@
       justify-content: space-between;
       align-items: center;
       background: var(--bg-secondary);
+      flex-shrink: 0;
     }
 
     .chat-title {
@@ -312,6 +315,7 @@
       display: flex;
       gap: 12px;
       align-items: flex-end;
+      flex-shrink: 0;
     }
 
     .input-wrapper {
@@ -756,7 +760,7 @@
 <script>
   // ===== CONFIGURATION SUPABASE =====
   const SUPABASE_URL = 'https://nwwuolbafiacxcqtkuri.supabase.co';
-  const SUPABASE_KEY = 'sb_publishable_XGosWkveljvqaqSYuLEuMQ_b-otnH9b';
+  const SUPABASE_KEY = 'YOUR_PUBLISHABLE_KEY';
 
   let supabaseClient = null;
   let currentUser = null;
@@ -770,7 +774,7 @@
   async function initApp() {
     // Vérifier configuration
     if (SUPABASE_URL === 'https://YOUR_PROJECT.supabase.co' || 
-        SUPABASE_KEY === 'YOUR_PUBLISHABLE_KEY') {
+        SUPABASE_KEY === 'sb_publishable_XGosWkveljvqaqSYuLEuMQ_b-otnH9b') {
       showError('authError', '⚙️ Configurez vos credentials Supabase dans le code');
       return;
     }
