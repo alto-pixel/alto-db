@@ -25,50 +25,48 @@
   </form>
 
   <script>
-    // ⚡ Configuration Supabase
-    const SUPABASE_URL = "https://nwwuolbafiacxcqtkuri.supabase.co";
-    const SUPABASE_KEY = "sb_publishable_XGosWkveljvqaqSYuLEuMQ_b-otnH9b";
-    const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  // ⚡ Configuration Supabase
+  const SUPABASE_URL = "https://nwwuolbafiacxcqtkuri.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_XGosWkveljvqaqSYuLEuMQ_b-otnH9b";
 
-    // Fonction pour récupérer et afficher les items
-    async function fetchItems() {
-      const { data, error } = await supabase.from('items').select('*').order('id');
-      if (error) {
-        console.error("Erreur Supabase :", error);
-        return;
-      }
+  // ⚠️ Crée le client Supabase une seule fois
+  const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-      const list = document.getElementById('item-list');
-      list.innerHTML = ""; // vide la liste avant de la remplir
-
-      data.forEach(item => {
-        const li = document.createElement('li');
-        li.textContent = `${item.name} : ${item.description}`;
-        list.appendChild(li);
-      });
+  // Fonction pour récupérer les items
+  async function fetchItems() {
+    const { data, error } = await supabase.from('items').select('*').order('id');
+    if (error) {
+      console.error("Erreur Supabase :", error);
+      return;
     }
 
-    // Initialiser la liste au chargement
-    fetchItems();
-
-    // Ajouter un item via le formulaire
-    const form = document.getElementById("item-form");
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-
-      const name = document.getElementById("name").value;
-      const description = document.getElementById("description").value;
-
-      const { data, error } = await supabase.from("items").insert([{ name, description }]);
-      if (error) {
-        console.error("Erreur lors de l'ajout :", error);
-      } else {
-        console.log("Item ajouté :", data);
-        fetchItems(); // recharge la liste après ajout
-      }
-
-      form.reset(); // vide le formulaire
+    const list = document.getElementById('item-list');
+    list.innerHTML = "";
+    data.forEach(item => {
+      const li = document.createElement('li');
+      li.textContent = `${item.name} : ${item.description}`;
+      list.appendChild(li);
     });
-  </script>
-</body>
-</html>
+  }
+
+  fetchItems();
+
+  // Ajouter un item via le formulaire
+  const form = document.getElementById("item-form");
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const name = document.getElementById("name").value;
+    const description = document.getElementById("description").value;
+
+    const { data, error } = await supabase.from("items").insert([{ name, description }]);
+    if (error) {
+      console.error("Erreur lors de l'ajout :", error);
+    } else {
+      console.log("Item ajouté :", data);
+      fetchItems(); // recharge la liste
+    }
+
+    form.reset();
+  });
+</script>
