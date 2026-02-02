@@ -189,22 +189,10 @@
       font-size: 0.9em;
       color: white;
       flex-shrink: 0;
-      position: relative;
     }
 
     .conversation-avatar.group {
       background: linear-gradient(135deg, #f59e0b, #d97706);
-    }
-
-    .online-indicator {
-      width: 10px;
-      height: 10px;
-      background: var(--success);
-      border-radius: 50%;
-      position: absolute;
-      bottom: 0;
-      right: 0;
-      border: 2px solid var(--bg-secondary);
     }
 
     .conversation-info {
@@ -227,19 +215,6 @@
       overflow: hidden;
       text-overflow: ellipsis;
       margin-top: 2px;
-    }
-
-    .unread-badge {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 20px;
-      height: 20px;
-      background: var(--danger);
-      border-radius: 50%;
-      font-size: 0.7em;
-      font-weight: 700;
-      flex-shrink: 0;
     }
 
     /* ===== MAIN CHAT ===== */
@@ -450,42 +425,6 @@
       background: var(--danger);
     }
 
-    .typing-indicator {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      color: var(--text-secondary);
-      font-size: 0.9em;
-      margin: 10px 0;
-      padding: 0 20px;
-    }
-
-    .typing-dots {
-      display: flex;
-      gap: 3px;
-    }
-
-    .dot {
-      width: 6px;
-      height: 6px;
-      background: currentColor;
-      border-radius: 50%;
-      animation: typing 1.4s infinite;
-    }
-
-    .dot:nth-child(2) {
-      animation-delay: 0.2s;
-    }
-
-    .dot:nth-child(3) {
-      animation-delay: 0.4s;
-    }
-
-    @keyframes typing {
-      0%, 60%, 100% { opacity: 0.3; }
-      30% { opacity: 1; }
-    }
-
     .input-area {
       padding: 20px;
       border-top: 1px solid var(--border);
@@ -556,8 +495,8 @@
 
     /* ===== EMOJI PICKER ===== */
     .emoji-picker {
-      position: absolute;
-      bottom: 60px;
+      position: fixed;
+      bottom: 100px;
       right: 20px;
       background: var(--bg-secondary);
       border: 1px solid var(--border);
@@ -949,7 +888,7 @@
             </div>
           </div>
         </div>
-        <button id="infoBtn" style="background: none; border: none; color: var(--text); cursor: pointer; font-size: 1.2em;">
+        <button id="infoBtn" style="background: none; border: none; color: var(--text); cursor: pointer; font-size: 1.2em; display: none;">
           <i class="fas fa-info-circle"></i>
         </button>
       </div>
@@ -1037,12 +976,11 @@
   const SUPABASE_URL = 'https://nwwuolbafiacxcqtkuri.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_XGosWkveljvqaqSYuLEuMQ_b-otnH9b';
 
-  const REACTION_EMOJIS = ['👍', '❤️', '😂', '🎉', '🔥', '😍', '😱', '🤔', '😴', '💯'];
-
   let supabaseClient = null;
   let currentUser = null;
   let currentConversation = null;
   let messageSubscription = null;
+  let convSubscription = null;
   let typingTimeout = null;
   let isSignUpMode = false;
   let selectedMembers = [];
@@ -1174,6 +1112,7 @@
       document.getElementById('authScreen').style.display = 'flex';
       document.getElementById('chatApp').style.display = 'none';
       if (messageSubscription) await messageSubscription.unsubscribe();
+      if (convSubscription) await convSubscription.unsubscribe();
     } catch (error) {
       console.error('Erreur:', error);
     }
@@ -1203,7 +1142,6 @@
 
   async function loadConversations() {
     try {
-      // 1. Récupérer les conversations où l'utilisateur est participant
       const { data: conversations, error: convError } = await supabaseClient
         .from('conversations')
         .select(`
@@ -1225,7 +1163,6 @@
         return;
       }
 
-      // 2. Pour chaque conversation, récupérer les infos
       const conversationsWithDetails = await Promise.all(
         conversations.map(async (conv) => {
           const { data: members } = await supabaseClient
@@ -1235,7 +1172,7 @@
 
           const { data: lastMsg } = await supabaseClient
             .from('messages')
-            .select('content, created_at, sender_id')
+            .select('content, created_at')
             .eq('conversation_id', conv.id)
             .order('created_at', { ascending: false })
             .limit(1);
@@ -1248,7 +1185,6 @@
         })
       );
 
-      // 3. Filtrer pour ne garder que celles où l'utilisateur est participant
       const userConversations = conversationsWithDetails.filter(conv =>
         conv.members.some(m => m.user_id === currentUser.id)
       );
@@ -1287,6 +1223,21 @@
           </div>
         `;
       }).join('');
+
+      // Écouter les changements de conversations
+      if (!convSubscription) {
+        convSubscription = supabaseClient
+          .channel('conversations-all')
+          .on('postgres_changes', 
+            { event: 'INSERT', schema: 'public', table: 'conversation_members' },
+            () => loadConversations()
+          )
+          .on('postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'messages' },
+            () => loadConversations()
+          )
+          .subscribe();
+      }
     } catch (error) {
       console.error('Erreur:', error);
     }
@@ -1326,35 +1277,66 @@
       document.getElementById('noConversationSelected').style.display = 'none';
       document.getElementById('chatWindow').style.display = 'flex';
 
-      loadMessages();
+      await loadMessages();
 
       if (messageSubscription) {
         await messageSubscription.unsubscribe();
+        messageSubscription = null;
       }
       
+      const channelName = `messages-${convId}-${Date.now()}`;
+      
       messageSubscription = supabaseClient
-        .channel(`messages:${convId}`)
+        .channel(channelName)
         .on('postgres_changes', 
-          { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${convId}` },
-          () => loadMessages()
+          { 
+            event: 'INSERT', 
+            schema: 'public', 
+            table: 'messages', 
+            filter: `conversation_id=eq.${convId}` 
+          },
+          (payload) => {
+            console.log('✉️ Nouveau message');
+            loadMessages();
+          }
         )
         .on('postgres_changes',
-          { event: 'DELETE', schema: 'public', table: 'messages', filter: `conversation_id=eq.${convId}` },
-          () => loadMessages()
+          {
+            event: 'DELETE',
+            schema: 'public',
+            table: 'messages'
+          },
+          (payload) => {
+            console.log('🗑️ Message supprimé');
+            loadMessages();
+          }
         )
         .on('postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'message_reactions', filter: `message_id=in.(SELECT id FROM messages WHERE conversation_id=eq.${convId})` },
-          () => loadMessages()
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'message_reactions'
+          },
+          (payload) => {
+            console.log('👍 Réaction');
+            loadMessages();
+          }
         )
         .on('postgres_changes',
-          { event: 'DELETE', schema: 'public', table: 'message_reactions', filter: `message_id=in.(SELECT id FROM messages WHERE conversation_id=eq.${convId})` },
-          () => loadMessages()
+          {
+            event: 'DELETE',
+            schema: 'public',
+            table: 'message_reactions'
+          },
+          (payload) => {
+            console.log('👎 Réaction supprimée');
+            loadMessages();
+          }
         )
-        .on('postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'typing_indicators', filter: `conversation_id=eq.${convId}` },
-          () => showTypingIndicator()
-        )
-        .subscribe();
+        .subscribe((status) => {
+          console.log('✅ Realtime:', status);
+        });
+
     } catch (error) {
       console.error('Erreur:', error);
     }
@@ -1362,7 +1344,7 @@
 
   async function loadMessages() {
     try {
-      const { data: messages } = await supabaseClient
+      const { data: messages, error } = await supabaseClient
         .from('messages')
         .select(`
           *,
@@ -1372,9 +1354,14 @@
         .eq('conversation_id', currentConversation)
         .order('created_at', { ascending: true });
 
+      if (error) {
+        console.error('Erreur:', error);
+        return;
+      }
+
       const container = document.getElementById('messagesContainer');
       
-      if (!messages) {
+      if (!messages || messages.length === 0) {
         container.innerHTML = '';
         return;
       }
@@ -1383,10 +1370,14 @@
         const isOwn = msg.sender_id === currentUser.id;
         const groupReactions = {};
         
-        msg.reactions.forEach(reaction => {
-          if (!groupReactions[reaction.emoji]) groupReactions[reaction.emoji] = [];
-          groupReactions[reaction.emoji].push(reaction.user_id);
-        });
+        if (msg.reactions) {
+          msg.reactions.forEach(reaction => {
+            if (!groupReactions[reaction.emoji]) {
+              groupReactions[reaction.emoji] = [];
+            }
+            groupReactions[reaction.emoji].push(reaction.user_id);
+          });
+        }
 
         const reactionsHtml = Object.entries(groupReactions).map(([emoji, users]) => `
           <div class="reaction" onclick="toggleReaction('${msg.id}', '${emoji}', event)">
@@ -1466,12 +1457,8 @@
 
   function showReactionPicker(messageId) {
     const picker = document.getElementById('emojiPicker');
-    picker.style.position = 'fixed';
-    picker.style.bottom = '80px';
-    picker.style.right = '20px';
-    picker.style.zIndex = '101';
-    picker.classList.remove('hidden');
     picker.dataset.messageId = messageId;
+    picker.classList.remove('hidden');
   }
 
   function toggleEmojiPicker() {
@@ -1489,14 +1476,15 @@
         .select('id')
         .eq('message_id', messageId)
         .eq('user_id', currentUser.id)
-        .eq('emoji', emoji)
-        .single();
+        .eq('emoji', emoji);
 
-      if (existing) {
+      if (existing && existing.length > 0) {
         await supabaseClient
           .from('message_reactions')
           .delete()
-          .eq('id', existing.id);
+          .eq('message_id', messageId)
+          .eq('user_id', currentUser.id)
+          .eq('emoji', emoji);
       } else {
         await supabaseClient
           .from('message_reactions')
@@ -1523,14 +1511,13 @@
         .select('id')
         .eq('message_id', messageId)
         .eq('user_id', currentUser.id)
-        .eq('emoji', emoji)
-        .single();
+        .eq('emoji', emoji);
 
-      if (existing) {
+      if (existing && existing.length > 0) {
         await supabaseClient
           .from('message_reactions')
           .delete()
-          .eq('id', existing.id);
+          .eq('id', existing[0].id);
       } else {
         await supabaseClient
           .from('message_reactions')
@@ -1543,19 +1530,7 @@
 
       await loadMessages();
     } catch (error) {
-      // Reaction n'existe pas, on l'ajoute
-      try {
-        await supabaseClient
-          .from('message_reactions')
-          .insert([{
-            message_id: messageId,
-            user_id: currentUser.id,
-            emoji
-          }]);
-        await loadMessages();
-      } catch (e) {
-        console.error('Erreur:', e);
-      }
+      console.error('Erreur:', error);
     }
   }
 
@@ -1572,7 +1547,8 @@
         typingTimeout = setTimeout(() => {
           clearTypingIndicator();
         }, 3000);
-      });
+      })
+      .catch(() => {});
   }
 
   async function clearTypingIndicator() {
@@ -1582,37 +1558,6 @@
         .delete()
         .eq('conversation_id', currentConversation)
         .eq('user_id', currentUser.id);
-    } catch (error) {
-      console.error('Erreur:', error);
-    }
-  }
-
-  async function showTypingIndicator() {
-    try {
-      const { data: typing } = await supabaseClient
-        .from('typing_indicators')
-        .select('user:user_profiles(display_name)')
-        .eq('conversation_id', currentConversation)
-        .neq('user_id', currentUser.id);
-
-      if (typing && typing.length > 0) {
-        const typingUsers = typing.map(t => t.user.display_name).join(', ');
-        const indicator = document.querySelector('.typing-indicator');
-        
-        if (!indicator) {
-          const html = `
-            <div class="typing-indicator">
-              <span>${typingUsers} est en train d'écrire</span>
-              <div class="typing-dots">
-                <div class="dot"></div>
-                <div class="dot"></div>
-                <div class="dot"></div>
-              </div>
-            </div>
-          `;
-          document.getElementById('messagesContainer').insertAdjacentHTML('beforeend', html);
-        }
-      }
     } catch (error) {
       console.error('Erreur:', error);
     }
@@ -1632,7 +1577,6 @@
     }
 
     try {
-      // 1. Trouver l'utilisateur par email
       const { data: recipient, error: recipientError } = await supabaseClient
         .from('user_profiles')
         .select('id')
@@ -1644,7 +1588,6 @@
         return;
       }
 
-      // 2. Créer la conversation directement (sans vérifier les existantes)
       const { data: newConv, error: convError } = await supabaseClient
         .from('conversations')
         .insert([{
@@ -1656,7 +1599,6 @@
       if (convError) throw convError;
       if (!newConv || !newConv[0]) throw new Error('Erreur création conversation');
 
-      // 3. Ajouter les 2 participants
       const { error: membersError } = await supabaseClient
         .from('conversation_members')
         .insert([
@@ -1666,12 +1608,10 @@
 
       if (membersError) throw membersError;
 
-      // 4. Fermer le modal et recharger
       closeModal('newConversationModal');
       document.getElementById('recipientEmail').value = '';
       await loadConversations();
       
-      // Sélectionner la nouvelle conversation
       setTimeout(() => {
         selectConversation(newConv[0].id);
       }, 500);
@@ -1721,7 +1661,6 @@
     }
 
     try {
-      // Récupérer les IDs des membres
       const { data: members, error: membersError } = await supabaseClient
         .from('user_profiles')
         .select('id, email')
